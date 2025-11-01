@@ -42,17 +42,10 @@ class WaterLevelChart extends StatelessWidget {
         children: [
           const Text(
             'Water Level Trend',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
-          _buildChart(
-            allLevels,
-            yAxisMin,
-            yAxisMax,
-          ),
+          _buildChart(allLevels, yAxisMin, yAxisMax),
         ],
       ),
     );
@@ -154,9 +147,7 @@ class LineChartPainter extends CustomPainter {
       ..color = Colors.grey.withOpacity(0.2)
       ..strokeWidth = 1;
 
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     for (int i = 0; i <= gridLineCount; i++) {
       final normalizedValue = i / gridLineCount;
@@ -191,9 +182,7 @@ class LineChartPainter extends CustomPainter {
 
     canvas.drawLine(Offset(0, height), Offset(width, height), axisPaint);
 
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     for (int i = 0; i < timeLabels.length; i++) {
       final x = i * xStep;
