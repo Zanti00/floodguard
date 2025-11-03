@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'hotline_page.dart';
+import 'notify_page.dart';
 import '../widgets/animated_water_level.dart';
 import '../widgets/water_level_chart.dart';
 
@@ -79,7 +80,7 @@ class _DashboardState extends State<DashboardPage> {
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+          BottomNavigationBarItem(icon: Icon(Icons.phone), label: 'Hotlines'),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: 'Settings',
@@ -262,32 +263,7 @@ class _DashboardState extends State<DashboardPage> {
   }
 
   Widget _buildHistoryTab() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Water Level History',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'History data will be displayed here. You can view past water level readings and trends.',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return HotlinePage(showAppBar: false);
   }
 
   Widget _buildSettingsTab() {
@@ -311,14 +287,14 @@ class _DashboardState extends State<DashboardPage> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: Icon(Icons.phone),
-                    title: Text('Hotlines & Contacts'),
+                    leading: Icon(Icons.notifications),
+                    title: Text('Notify me'),
                     trailing: Icon(Icons.arrow_forward),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const HotlinePage(),
+                          builder: (context) => const NotifyPage(),
                         ),
                       );
                     },

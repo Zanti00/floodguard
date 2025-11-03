@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HotlinePage extends StatefulWidget {
-  const HotlinePage({super.key});
+  final bool showAppBar;
+
+  const HotlinePage({super.key, this.showAppBar = true});
 
   @override
   State<HotlinePage> createState() => _HotlinePageState();
@@ -59,54 +61,71 @@ class _HotlinePageState extends State<HotlinePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFFF1F4F8),
-      appBar: AppBar(
-        backgroundColor: Color(0xFF41BAF1),
-        title: const Text(
-          'Hotlines & Contacts',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildCategorySection('Emergency', hotlineData['general']),
-                    SizedBox(height: 16),
-                    _buildCategorySection('Police', hotlineData['police']),
-                    SizedBox(height: 16),
-                    _buildCategorySection('Fire', hotlineData['fire']),
-                    SizedBox(height: 16),
-                    _buildCategorySection('Medical', hotlineData['medical']),
-                    SizedBox(height: 16),
-                    _buildCategorySection(
-                      'Rescue & Disaster',
-                      hotlineData['rescue_disaster'],
+    final body = _isLoading
+        ? Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.showAppBar)
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 20),
+                      child: Text(
+                        'Hotlines & Contacts',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                    SizedBox(height: 16),
-                    _buildCategorySection('Weather', hotlineData['weather']),
-                    SizedBox(height: 16),
-                    _buildCategorySection(
-                      'Earthquake & Seismic',
-                      hotlineData['earthquake_seismic'],
-                    ),
-                    SizedBox(height: 16),
-                    _buildCategorySection('Traffic', hotlineData['traffic']),
-                    SizedBox(height: 20),
-                  ],
-                ),
+                  _buildCategorySection('Emergency', hotlineData['general']),
+                  SizedBox(height: 16),
+                  _buildCategorySection('Police', hotlineData['police']),
+                  SizedBox(height: 16),
+                  _buildCategorySection('Fire', hotlineData['fire']),
+                  SizedBox(height: 16),
+                  _buildCategorySection('Medical', hotlineData['medical']),
+                  SizedBox(height: 16),
+                  _buildCategorySection(
+                    'Rescue & Disaster',
+                    hotlineData['rescue_disaster'],
+                  ),
+                  SizedBox(height: 16),
+                  _buildCategorySection('Weather', hotlineData['weather']),
+                  SizedBox(height: 16),
+                  _buildCategorySection(
+                    'Earthquake & Seismic',
+                    hotlineData['earthquake_seismic'],
+                  ),
+                  SizedBox(height: 16),
+                  _buildCategorySection('Traffic', hotlineData['traffic']),
+                  SizedBox(height: 20),
+                ],
               ),
             ),
-    );
+          );
+
+    if (widget.showAppBar) {
+      return Scaffold(
+        backgroundColor: Color(0xFFF1F4F8),
+        appBar: AppBar(
+          backgroundColor: Color(0xFF41BAF1),
+          title: const Text(
+            'Hotlines & Contacts',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: body,
+      );
+    } else {
+      return body;
+    }
   }
 
   Widget _buildCategorySection(String title, List<dynamic>? organizations) {
