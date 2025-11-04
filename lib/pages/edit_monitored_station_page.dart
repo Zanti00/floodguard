@@ -29,6 +29,11 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
   bool _isLoadingStations = true;
   String? _stationError;
   List<String> _currentStations = [];
+  Map<String, bool> _alertLevels = {
+    'Alarm': false,
+    'Alert': false,
+    'Critical Level': false,
+  };
 
   @override
   void initState() {
@@ -695,6 +700,71 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
                                 }),
                               ),
                             ),
+                      SizedBox(height: 20),
+                      // Alert Levels Section
+                      Text(
+                        'Alert Levels to Receive',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            CheckboxListTile(
+                              value: _alertLevels['Alarm'] ?? false,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  _alertLevels['Alarm'] = value ?? false;
+                                });
+                              },
+                              title: Text('Alarm'),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 0,
+                              ),
+                            ),
+                            Divider(height: 1),
+                            CheckboxListTile(
+                              value: _alertLevels['Alert'] ?? false,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  _alertLevels['Alert'] = value ?? false;
+                                });
+                              },
+                              title: Text('Alert'),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 0,
+                              ),
+                            ),
+                            Divider(height: 1),
+                            CheckboxListTile(
+                              value: _alertLevels['Critical Level'] ?? false,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  _alertLevels['Critical Level'] =
+                                      value ?? false;
+                                });
+                              },
+                              title: Text('Critical Level'),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
