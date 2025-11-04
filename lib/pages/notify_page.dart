@@ -27,8 +27,8 @@ class _NotifyPageState extends State<NotifyPage> {
   bool _isResendingOTP = false;
   String? _otpError;
   Map<String, bool> _alertLevels = {
-    'Alarm': false,
     'Alert': false,
+    'Alarm': false,
     'Critical Level': false,
   };
 
@@ -223,51 +223,53 @@ class _NotifyPageState extends State<NotifyPage> {
 
   Widget _buildOTPInputField() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: List.generate(6, (index) {
-        return SizedBox(
-          width: 50,
-          height: 60,
-          child: TextField(
-            enabled: _isPhoneValid,
-            textAlign: TextAlign.center,
-            keyboardType: TextInputType.number,
-            maxLength: 1,
-            obscureText: true,
-            onChanged: (value) {
-              if (value.isNotEmpty) {
-                _otpController.text += value;
-                if (index < 5) {
-                  FocusScope.of(context).nextFocus();
+        return Flexible(
+          flex: 1,
+          child: AspectRatio(
+            aspectRatio: 1.0,
+            child: TextField(
+              enabled: _isPhoneValid,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              maxLength: 1,
+              obscureText: true,
+              onChanged: (value) {
+                if (value.isNotEmpty) {
+                  _otpController.text += value;
+                  if (index < 5) {
+                    FocusScope.of(context).nextFocus();
+                  }
+                } else {
+                  if (_otpController.text.isNotEmpty) {
+                    _otpController.text = _otpController.text.substring(
+                      0,
+                      _otpController.text.length - 1,
+                    );
+                  }
+                  if (index > 0) {
+                    FocusScope.of(context).previousFocus();
+                  }
                 }
-              } else {
-                if (_otpController.text.isNotEmpty) {
-                  _otpController.text = _otpController.text.substring(
-                    0,
-                    _otpController.text.length - 1,
-                  );
-                }
-                if (index > 0) {
-                  FocusScope.of(context).previousFocus();
-                }
-              }
-              setState(() {});
-            },
-            decoration: InputDecoration(
-              counterText: '',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                setState(() {});
+              },
+              decoration: InputDecoration(
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Color(0xFF41BAF1), width: 2),
+                ),
+                contentPadding: EdgeInsets.all(0),
               ),
-              disabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Color(0xFF41BAF1), width: 2),
-              ),
-              contentPadding: EdgeInsets.zero,
             ),
           ),
         );
@@ -280,9 +282,6 @@ class _NotifyPageState extends State<NotifyPage> {
       final phone = _phoneController.text;
       final otp = _otpController.text;
 
-      // Verify OTP using the service
-      await OTPService.verifyOTP(phone, otp);
-
       // Get selected stations
       final selectedStations = _selectedStations.entries
           .where((entry) => entry.value)
@@ -293,7 +292,21 @@ class _NotifyPageState extends State<NotifyPage> {
         throw Exception('Please select at least one station to monitor');
       }
 
+      // Get selected alert levels
+      final selectedAlertLevels = _alertLevels.entries
+          .where((entry) => entry.value)
+          .map((entry) => entry.key)
+          .toList();
+
+      if (selectedAlertLevels.isEmpty) {
+        throw Exception('Please select at least one alert level to receive');
+      }
+
       print('Selected stations: $selectedStations');
+      print('Selected alert levels: $selectedAlertLevels');
+
+      // Verify OTP using the service (only after validation checks pass)
+      await OTPService.verifyOTP(phone, otp);
 
       final now = DateTime.now().toIso8601String();
 
@@ -313,6 +326,7 @@ class _NotifyPageState extends State<NotifyPage> {
               'is_verified': true,
               'is_subscribed': true,
               'stations': selectedStations.join(','),
+              'alert_levels': selectedAlertLevels.join(','),
               'updated_at': now,
             })
             .eq('id', existingUser['id']);
@@ -328,6 +342,7 @@ class _NotifyPageState extends State<NotifyPage> {
           'is_verified': true,
           'is_subscribed': true,
           'stations': selectedStations.join(','),
+          'alert_levels': selectedAlertLevels.join(','),
           'created_at': now,
           'updated_at': now,
         });
@@ -719,13 +734,13 @@ class _NotifyPageState extends State<NotifyPage> {
                       child: Column(
                         children: [
                           CheckboxListTile(
-                            value: _alertLevels['Alarm'] ?? false,
+                            value: _alertLevels['Alert'] ?? false,
                             onChanged: (bool? value) {
                               setState(() {
-                                _alertLevels['Alarm'] = value ?? false;
+                                _alertLevels['Alert'] = value ?? false;
                               });
                             },
-                            title: Text('Alarm'),
+                            title: Text('Alert'),
                             controlAffinity: ListTileControlAffinity.leading,
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 8,
@@ -734,13 +749,13 @@ class _NotifyPageState extends State<NotifyPage> {
                           ),
                           Divider(height: 1),
                           CheckboxListTile(
-                            value: _alertLevels['Alert'] ?? false,
+                            value: _alertLevels['Alarm'] ?? false,
                             onChanged: (bool? value) {
                               setState(() {
-                                _alertLevels['Alert'] = value ?? false;
+                                _alertLevels['Alarm'] = value ?? false;
                               });
                             },
-                            title: Text('Alert'),
+                            title: Text('Alarm'),
                             controlAffinity: ListTileControlAffinity.leading,
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 8,

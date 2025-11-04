@@ -171,51 +171,53 @@ class _UnsubscribePageState extends State<UnsubscribePage> {
 
   Widget _buildOTPInputField() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: List.generate(6, (index) {
-        return SizedBox(
-          width: 50,
-          height: 60,
-          child: TextField(
-            enabled: _isPhoneValid && !_isLoading && !_unsubscribed,
-            textAlign: TextAlign.center,
-            keyboardType: TextInputType.number,
-            maxLength: 1,
-            obscureText: true,
-            onChanged: (value) {
-              if (value.isNotEmpty) {
-                _otpController.text += value;
-                if (index < 5) {
-                  FocusScope.of(context).nextFocus();
+        return Flexible(
+          flex: 1,
+          child: AspectRatio(
+            aspectRatio: 1.0,
+            child: TextField(
+              enabled: _isPhoneValid && !_isLoading && !_unsubscribed,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              maxLength: 1,
+              obscureText: true,
+              onChanged: (value) {
+                if (value.isNotEmpty) {
+                  _otpController.text += value;
+                  if (index < 5) {
+                    FocusScope.of(context).nextFocus();
+                  }
+                } else {
+                  if (_otpController.text.isNotEmpty) {
+                    _otpController.text = _otpController.text.substring(
+                      0,
+                      _otpController.text.length - 1,
+                    );
+                  }
+                  if (index > 0) {
+                    FocusScope.of(context).previousFocus();
+                  }
                 }
-              } else {
-                if (_otpController.text.isNotEmpty) {
-                  _otpController.text = _otpController.text.substring(
-                    0,
-                    _otpController.text.length - 1,
-                  );
-                }
-                if (index > 0) {
-                  FocusScope.of(context).previousFocus();
-                }
-              }
-              setState(() {});
-            },
-            decoration: InputDecoration(
-              counterText: '',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                setState(() {});
+              },
+              decoration: InputDecoration(
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Color(0xFF41BAF1), width: 2),
+                ),
+                contentPadding: EdgeInsets.all(0),
               ),
-              disabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Color(0xFF41BAF1), width: 2),
-              ),
-              contentPadding: EdgeInsets.zero,
             ),
           ),
         );

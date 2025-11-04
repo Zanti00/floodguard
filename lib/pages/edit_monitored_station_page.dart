@@ -30,8 +30,8 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
   String? _stationError;
   List<String> _currentStations = [];
   Map<String, bool> _alertLevels = {
-    'Alarm': false,
     'Alert': false,
+    'Alarm': false,
     'Critical Level': false,
   };
 
@@ -234,51 +234,53 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
 
   Widget _buildOTPInputField() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: List.generate(6, (index) {
-        return SizedBox(
-          width: 50,
-          height: 60,
-          child: TextField(
-            enabled: _isPhoneValid && !_isLoading && !_updated,
-            textAlign: TextAlign.center,
-            keyboardType: TextInputType.number,
-            maxLength: 1,
-            obscureText: true,
-            onChanged: (value) {
-              if (value.isNotEmpty) {
-                _otpController.text += value;
-                if (index < 5) {
-                  FocusScope.of(context).nextFocus();
+        return Flexible(
+          flex: 1,
+          child: AspectRatio(
+            aspectRatio: 1.0,
+            child: TextField(
+              enabled: _isPhoneValid && !_isLoading && !_updated,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              maxLength: 1,
+              obscureText: true,
+              onChanged: (value) {
+                if (value.isNotEmpty) {
+                  _otpController.text += value;
+                  if (index < 5) {
+                    FocusScope.of(context).nextFocus();
+                  }
+                } else {
+                  if (_otpController.text.isNotEmpty) {
+                    _otpController.text = _otpController.text.substring(
+                      0,
+                      _otpController.text.length - 1,
+                    );
+                  }
+                  if (index > 0) {
+                    FocusScope.of(context).previousFocus();
+                  }
                 }
-              } else {
-                if (_otpController.text.isNotEmpty) {
-                  _otpController.text = _otpController.text.substring(
-                    0,
-                    _otpController.text.length - 1,
-                  );
-                }
-                if (index > 0) {
-                  FocusScope.of(context).previousFocus();
-                }
-              }
-              setState(() {});
-            },
-            decoration: InputDecoration(
-              counterText: '',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                setState(() {});
+              },
+              decoration: InputDecoration(
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Color(0xFF41BAF1), width: 2),
+                ),
+                contentPadding: EdgeInsets.all(0),
               ),
-              disabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Color(0xFF41BAF1), width: 2),
-              ),
-              contentPadding: EdgeInsets.zero,
             ),
           ),
         );
@@ -304,9 +306,6 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
         throw Exception('Please enter a valid 6-digit OTP');
       }
 
-      // Verify OTP using the service
-      await OTPService.verifyOTP(phone, otp);
-
       // Get selected stations
       final selectedStations = _selectedStations.entries
           .where((entry) => entry.value)
@@ -317,7 +316,21 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
         throw Exception('Please select at least one station to monitor');
       }
 
+      // Get selected alert levels
+      final selectedAlertLevels = _alertLevels.entries
+          .where((entry) => entry.value)
+          .map((entry) => entry.key)
+          .toList();
+
+      if (selectedAlertLevels.isEmpty) {
+        throw Exception('Please select at least one alert level to receive');
+      }
+
       print('Selected stations: $selectedStations');
+      print('Selected alert levels: $selectedAlertLevels');
+
+      // Verify OTP using the service (only after validation checks pass)
+      await OTPService.verifyOTP(phone, otp);
 
       // Check if user exists
       final existingUser = await Supabase.instance.client
@@ -330,10 +343,13 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
         throw Exception('Phone number not found in our records');
       }
 
-      // Update stations
+      // Update stations and alert levels
       await Supabase.instance.client
           .from('users')
-          .update({'stations': selectedStations.join(',')})
+          .update({
+            'stations': selectedStations.join(','),
+            'alert_levels': selectedAlertLevels.join(','),
+          })
           .eq('phone_number', phone);
 
       setState(() {
@@ -343,7 +359,9 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Successfully updated monitored stations'),
+          content: Text(
+            'Successfully updated monitored stations and alert levels',
+          ),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 2),
         ),
@@ -718,13 +736,13 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
                         child: Column(
                           children: [
                             CheckboxListTile(
-                              value: _alertLevels['Alarm'] ?? false,
+                              value: _alertLevels['Alert'] ?? false,
                               onChanged: (bool? value) {
                                 setState(() {
-                                  _alertLevels['Alarm'] = value ?? false;
+                                  _alertLevels['Alert'] = value ?? false;
                                 });
                               },
-                              title: Text('Alarm'),
+                              title: Text('Alert'),
                               controlAffinity: ListTileControlAffinity.leading,
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -733,13 +751,13 @@ class _EditMonitoredStationPageState extends State<EditMonitoredStationPage> {
                             ),
                             Divider(height: 1),
                             CheckboxListTile(
-                              value: _alertLevels['Alert'] ?? false,
+                              value: _alertLevels['Alarm'] ?? false,
                               onChanged: (bool? value) {
                                 setState(() {
-                                  _alertLevels['Alert'] = value ?? false;
+                                  _alertLevels['Alarm'] = value ?? false;
                                 });
                               },
-                              title: Text('Alert'),
+                              title: Text('Alarm'),
                               controlAffinity: ListTileControlAffinity.leading,
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: 8,
