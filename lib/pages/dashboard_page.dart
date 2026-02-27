@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'hotline_page.dart';
 import 'notify_page.dart';
+import 'message_page.dart';
 import '../widgets/animated_water_level.dart';
 import '../widgets/water_level_chart.dart';
 
@@ -80,6 +81,7 @@ class _DashboardState extends State<DashboardPage> {
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.mail), label: 'Message'),
           BottomNavigationBarItem(icon: Icon(Icons.phone), label: 'Hotlines'),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
@@ -114,9 +116,12 @@ class _DashboardState extends State<DashboardPage> {
         // Dashboard Tab
         return _buildDashboardTab();
       case 1:
-        // History Tab
-        return _buildHistoryTab();
+        // Message Tab
+        return _buildMessageTab();
       case 2:
+        // Hotlines Tab
+        return _buildHistoryTab();
+      case 3:
         // Settings Tab
         return _buildSettingsTab();
       default:
@@ -264,6 +269,10 @@ class _DashboardState extends State<DashboardPage> {
 
   Widget _buildHistoryTab() {
     return HotlinePage(showAppBar: false);
+  }
+
+  Widget _buildMessageTab() {
+    return MessagePage(showAppBar: false);
   }
 
   Widget _buildSettingsTab() {

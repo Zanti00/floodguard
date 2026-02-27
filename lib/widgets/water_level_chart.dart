@@ -27,8 +27,10 @@ class WaterLevelChart extends StatelessWidget {
     final maxLevel = allLevels.reduce((a, b) => a > b ? a : b);
 
     // Add some padding to max level for better visualization
+    // Ensure yAxisMax is at least 1.0 to avoid division by zero/NaN
     final yAxisMax = (maxLevel * 1.1).ceilToDouble();
     final yAxisMin = 0.0;
+    final finalYAxisMax = yAxisMax > 0 ? yAxisMax : 1.0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -45,7 +47,7 @@ class WaterLevelChart extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
-          _buildChart(allLevels, yAxisMin, yAxisMax),
+          _buildChart(allLevels, yAxisMin, finalYAxisMax),
         ],
       ),
     );
@@ -100,6 +102,11 @@ class LineChartPainter extends CustomPainter {
     final points = <Offset>[];
     final xStep = width / (levels.length - 1);
     final yRange = maxY - minY;
+
+    // Prevent division by zero
+    if (yRange <= 0) {
+      return;
+    }
 
     for (int i = 0; i < levels.length; i++) {
       final x = i * xStep;
