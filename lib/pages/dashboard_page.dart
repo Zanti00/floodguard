@@ -8,6 +8,7 @@ import 'notify_page.dart';
 import 'message_page.dart';
 import '../widgets/animated_water_level.dart';
 import '../widgets/water_level_chart.dart';
+import 'about_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -20,6 +21,7 @@ class _DashboardState extends State<DashboardPage> {
   String? selectedValue;
   List<String> items = [];
   List<dynamic> _water_level = [];
+  List<dynamic> _hourly_data = [];
   bool _isLoading = true;
   String? _errorMessage;
   int _selectedBottomNavIndex = 0;
@@ -46,12 +48,31 @@ class _DashboardState extends State<DashboardPage> {
         _isLoading = false;
         _addDropDownItem(_water_level);
       });
+      fetchHourlyData();
     } catch (error) {
       setState(() {
         _errorMessage = 'Error loading data: $error';
         _isLoading = false;
       });
       print('An error has occurred: $error');
+    }
+  }
+
+  Future<void> fetchHourlyData() async {
+    final obscdId = _getObscdIdForStation(selectedValue);
+    if (obscdId == null) return;
+    try {
+      final response = await Supabase.instance.client
+          .from('water_level_hourly')
+          .select()
+          .eq('obscd_id', obscdId)
+          .order('hour_bucket', ascending: false)
+          .limit(24);
+      setState(() {
+        _hourly_data = response;
+      });
+    } catch (e) {
+      print('Error fetching hourly data: $e');
     }
   }
 
@@ -203,6 +224,7 @@ class _DashboardState extends State<DashboardPage> {
                                   setState(() {
                                     selectedValue = newValue;
                                   });
+                                  fetchHourlyData();
                                 },
                           dropdownColor: Colors.white,
                           icon: const Icon(
@@ -249,10 +271,7 @@ class _DashboardState extends State<DashboardPage> {
               ),
             ),
             WaterLevelChart(
-              waterLevel2HrsAgo: _getWaterLevelForStation('water_level_2_h'),
-              waterLevel1HrAgo: _getWaterLevelForStation('water_level_1_h'),
-              waterLevel30mAgo: _getWaterLevelForStation('water_level_30_m'),
-              waterLevelNow: _getWaterLevelForStation('water_level'),
+              hourlyData: _hourly_data,
             ),
             AnimatedWaterLevel(
               waterLevel:
@@ -313,6 +332,14 @@ class _DashboardState extends State<DashboardPage> {
                     leading: Icon(Icons.info),
                     title: Text('About'),
                     trailing: Icon(Icons.arrow_forward),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AboutPage(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -357,6 +384,16 @@ class _DashboardState extends State<DashboardPage> {
     if (items.isNotEmpty && selectedValue == null) {
       selectedValue = items.first;
     }
+  }
+
+  String? _getObscdIdForStation(String? stationName) {
+    if (stationName == null) return null;
+    for (var entry in _water_level) {
+      if (entry['station_name'] == stationName) {
+        return entry['obscd_id']?.toString();
+      }
+    }
+    return null;
   }
 
   String _getWaterLevelForStation(String fieldName) {
@@ -503,7 +540,7 @@ class _DashboardState extends State<DashboardPage> {
             Column(
               children: [
                 Text(
-                  value,
+                  '${value}m',
                   style: TextStyle(
                     fontSize: label == 'Current' ? 34 : 24,
                     fontWeight: FontWeight.w800,

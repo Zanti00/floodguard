@@ -1,12 +1,10 @@
 import 'package:flutter/services.dart';
-import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 
 class BluetoothService {
   static bool _isDiscoveryActive = false;
   static String _deviceName = '';
   static String _deviceAddress = '';
   static const platform = MethodChannel('com.example.floodguard/bluetooth');
-  static final FlutterBlePeripheral _blePeripheral = FlutterBlePeripheral();
 
   /// Checks if Bluetooth is enabled on the device
   /// Includes retry logic with delays to handle state changes
@@ -89,8 +87,6 @@ class BluetoothService {
     return _deviceAddress.isNotEmpty ? _deviceAddress : 'Unavailable';
   }
 
-  /// Enables BLE advertising for the device
-  /// Makes the device discoverable via BLE for the specified duration
   static Future<void> makeDeviceDiscoverable({
     Duration discoverabilityDuration = const Duration(seconds: 120),
   }) async {
@@ -104,46 +100,19 @@ class BluetoothService {
       }
 
       print(
-        '🔵 BLE BROADCAST STARTED: Device advertising for ${discoverabilityDuration.inSeconds} seconds',
+        '🔵 CLASSIC BLUETOOTH BROADCAST STARTED: Device advertising for ${discoverabilityDuration.inSeconds} seconds',
       );
       print('📱 Device Name: $_deviceName');
 
-      // Start BLE advertising with error handling
-      try {
-        final advertiseData = AdvertiseData(
-          serviceUuid:
-              '0000FFF0-0000-1000-8000-00805F9B34FB', // Custom service UUID for FloodGuard
-          localName: _deviceName,
-          includeDeviceName: true,
-        );
-
-        final advertiseSettings = AdvertiseSettings(
-          advertiseMode: AdvertiseMode.advertiseModeBalanced,
-          txPowerLevel: AdvertiseTxPower.advertiseTxPowerHigh,
-          connectable: true,
-        );
-
-        await _blePeripheral.start(
-          advertiseData: advertiseData,
-          advertiseSettings: advertiseSettings,
-        );
-
-        print('✅ BLE advertising started successfully');
-        print('📡 Service UUID: 0000FFF0-0000-1000-8000-00805F9B34FB');
-        print('📍 Device should now be visible in BLE scanners');
-      } catch (e) {
-        print('❌ BLE advertising failed: $e');
-        print('💡 Trying classic Bluetooth only...');
-      }
-
-      // Also try classic Bluetooth discoverability as fallback
       try {
         await platform.invokeMethod<void>('makeDiscoverable', {
           'durationSeconds': discoverabilityDuration.inSeconds,
         });
-        print('✅ Classic Bluetooth discoverability also enabled');
+        print('✅ Classic Bluetooth discoverability enabled');
       } catch (e) {
-        print('ℹ️ Classic Bluetooth discoverability not available: $e');
+        print('❌ Classic Bluetooth discoverability not available: $e');
+        _isDiscoveryActive = false;
+        return;
       }
 
       // Maintain the discoverable state for the specified duration
@@ -160,13 +129,8 @@ class BluetoothService {
     }
   }
 
-  /// Stops making the device discoverable
   static Future<void> stopBroadcasting() async {
     try {
-      // Stop BLE advertising
-      await _blePeripheral.stop();
-      print('✅ BLE advertising stopped');
-
       // Stop classic Bluetooth discoverability
       try {
         await platform.invokeMethod<void>('cancelDiscoverability');
@@ -189,17 +153,15 @@ class BluetoothService {
     return _isDiscoveryActive;
   }
 
-  /// Checks if BLE is supported on the device
+  /// Checks if classic Bluetooth is supported via platform channels
   static Future<bool> isBleSupported() async {
     try {
-      // This requires flutter_blue_plus package
-      // Import it at the top if not already imported
       final isSupported = await platform.invokeMethod<bool>(
         'isBluetoothSupported',
       );
       return isSupported ?? false;
     } catch (e) {
-      print('Error checking BLE support: $e');
+      print('Error checking Bluetooth support: $e');
       return false;
     }
   }

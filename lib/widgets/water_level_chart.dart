@@ -1,33 +1,69 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 class WaterLevelChart extends StatelessWidget {
-  final String waterLevel2HrsAgo;
-  final String waterLevel1HrAgo;
-  final String waterLevel30mAgo;
-  final String waterLevelNow;
+  final List<dynamic> hourlyData;
 
   const WaterLevelChart({
     super.key,
-    required this.waterLevel2HrsAgo,
-    required this.waterLevel1HrAgo,
-    required this.waterLevel30mAgo,
-    required this.waterLevelNow,
+    required this.hourlyData,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Parse water levels to doubles
-    final level2HrsAgo = double.tryParse(waterLevel2HrsAgo) ?? 0.0;
-    final level1HrAgo = double.tryParse(waterLevel1HrAgo) ?? 0.0;
-    final level30mAgo = double.tryParse(waterLevel30mAgo) ?? 0.0;
-    final levelNow = double.tryParse(waterLevelNow) ?? 0.0;
+    if (hourlyData.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Water Level Trend (24h)',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 60),
+            const Center(child: Text('No historical data available')),
+            const SizedBox(height: 60),
+          ],
+        ),
+      );
+    }
+
+    // Sort chronologically (oldest to newest)
+    final sortedData = List<dynamic>.from(hourlyData)
+      ..sort((a, b) {
+        final dateA = DateTime.tryParse(a['hour_bucket'].toString()) ?? DateTime.now();
+        final dateB = DateTime.tryParse(b['hour_bucket'].toString()) ?? DateTime.now();
+        return dateA.compareTo(dateB);
+      });
+
+    final fixedLevels = <double>[0.0, 0.0, 0.0, 0.0];
+    bool hasData = false;
+
+    // Get the most recent value for each specific hour of the fixed axis
+    for (var entry in sortedData) {
+      final date = DateTime.tryParse(entry['hour_bucket'].toString())?.toLocal();
+      if (date != null) {
+        final level = double.tryParse(entry['avg_level_m'].toString()) ?? 0.0;
+        if (date.hour == 0) { fixedLevels[0] = level; hasData = true; }
+        else if (date.hour == 6) { fixedLevels[1] = level; hasData = true; }
+        else if (date.hour == 12) { fixedLevels[2] = level; hasData = true; }
+        else if (date.hour == 18) { fixedLevels[3] = level; hasData = true; }
+      }
+    }
+
+    final levels = fixedLevels;
+    final timeLabels = ['12AM', '6AM', '12PM', '6PM'];
 
     // Find max value for Y-axis
-    final allLevels = [level2HrsAgo, level1HrAgo, level30mAgo, levelNow];
-    final maxLevel = allLevels.reduce((a, b) => a > b ? a : b);
+    final maxLevel = hasData ? levels.reduce((a, b) => a > b ? a : b) : 0.0;
 
     // Add some padding to max level for better visualization
-    // Ensure yAxisMax is at least 1.0 to avoid division by zero/NaN
     final yAxisMax = (maxLevel * 1.1).ceilToDouble();
     final yAxisMin = 0.0;
     final finalYAxisMax = yAxisMax > 0 ? yAxisMax : 1.0;
@@ -43,18 +79,17 @@ class WaterLevelChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Water Level Trend',
+            'Water Level Trend (24h)',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
-          _buildChart(allLevels, yAxisMin, finalYAxisMax),
+          _buildChart(levels, yAxisMin, finalYAxisMax, timeLabels),
         ],
       ),
     );
   }
 
-  Widget _buildChart(List<double> levels, double minY, double maxY) {
-    const timeLabels = ['2hrs ago', '1hr ago', '30m ago', 'Now'];
+  Widget _buildChart(List<double> levels, double minY, double maxY, List<String> timeLabels) {
     const chartPadding = EdgeInsets.fromLTRB(60, 20, 20, 60);
     const chartHeight = 250.0;
     const chartWidth = 300.0;
@@ -62,7 +97,7 @@ class WaterLevelChart extends StatelessWidget {
     return Padding(
       padding: chartPadding,
       child: CustomPaint(
-        size: Size(chartWidth, chartHeight),
+        size: const Size(chartWidth, chartHeight),
         painter: LineChartPainter(
           levels: levels,
           minY: minY,
@@ -98,18 +133,17 @@ class LineChartPainter extends CustomPainter {
     // Draw X-axis and labels
     _drawXAxisAndLabels(canvas, size);
 
+    if (levels.isEmpty) return;
+
     // Calculate positions for data points
     final points = <Offset>[];
-    final xStep = width / (levels.length - 1);
+    final xStep = levels.length > 1 ? width / (levels.length - 1) : width;
     final yRange = maxY - minY;
 
-    // Prevent division by zero
-    if (yRange <= 0) {
-      return;
-    }
+    if (yRange <= 0) return;
 
     for (int i = 0; i < levels.length; i++) {
-      final x = i * xStep;
+      final x = levels.length == 1 ? width / 2 : i * xStep;
       final normalizedY = (levels[i] - minY) / yRange;
       final y = height - (normalizedY * height);
       points.add(Offset(x, y));
@@ -129,6 +163,8 @@ class LineChartPainter extends CustomPainter {
     }
 
     // Draw circles at data points
+    // Reduce size if there are many points
+    final radius = levels.length > 10 ? 3.0 : 6.0;
     final circlePaint = Paint()
       ..color = const Color(0xFF41BAF1)
       ..style = PaintingStyle.fill;
@@ -136,11 +172,13 @@ class LineChartPainter extends CustomPainter {
     final circleStrokePaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = levels.length > 10 ? 1 : 2;
 
     for (final point in points) {
-      canvas.drawCircle(point, 6, circlePaint);
-      canvas.drawCircle(point, 6, circleStrokePaint);
+      canvas.drawCircle(point, radius, circlePaint);
+      if (levels.length <= 10 || levels.length > 10) {
+        canvas.drawCircle(point, radius, circleStrokePaint);
+      }
     }
   }
 
@@ -174,14 +212,14 @@ class LineChartPainter extends CustomPainter {
         ),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(-50, y - 6));
+      textPainter.paint(canvas, Offset(-45, y - 6));
     }
   }
 
   void _drawXAxisAndLabels(Canvas canvas, Size size) {
     final width = size.width;
     final height = size.height;
-    final xStep = width / (timeLabels.length - 1);
+    final xStep = timeLabels.length > 1 ? width / (timeLabels.length - 1) : width;
 
     final axisPaint = Paint()
       ..color = Colors.black54
@@ -192,7 +230,9 @@ class LineChartPainter extends CustomPainter {
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     for (int i = 0; i < timeLabels.length; i++) {
-      final x = i * xStep;
+      if (timeLabels[i].isEmpty) continue;
+
+      final x = timeLabels.length == 1 ? width / 2 : i * xStep;
 
       textPainter.text = TextSpan(
         text: timeLabels[i],
@@ -209,6 +249,6 @@ class LineChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(LineChartPainter oldDelegate) {
-    return oldDelegate.levels != levels;
+    return oldDelegate.levels != levels || oldDelegate.timeLabels != timeLabels;
   }
 }
