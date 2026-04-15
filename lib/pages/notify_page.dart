@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'unsubscribe_page.dart';
 import 'edit_monitored_station_page.dart';
 import '../services/otp_service.dart';
+import '../services/notification_service.dart';
 
 class NotifyPage extends StatefulWidget {
   const NotifyPage({super.key});
@@ -26,6 +27,7 @@ class _NotifyPageState extends State<NotifyPage> {
   bool _isSendingOTP = false;
   bool _isResendingOTP = false;
   String? _otpError;
+  bool _isSendingDemo = false;
   Map<String, bool> _alertLevels = {
     'Alert': false,
     'Alarm': false,
@@ -360,6 +362,80 @@ class _NotifyPageState extends State<NotifyPage> {
     }
   }
 
+  Future<void> _handleSendSmsDemo() async {
+    final phone = _phoneController.text;
+    final selectedStations = _selectedStations.entries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key)
+        .toList();
+
+    final selectedAlertLevels = _alertLevels.entries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key)
+        .toList();
+
+    if (phone.isEmpty || phone.length < 11) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid 11-digit phone number.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (selectedStations.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one station to monitor first.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSendingDemo = true;
+    });
+
+    try {
+      await NotificationService.sendDemoSms(
+        phone: phone,
+        stations: selectedStations,
+        alertLevels: selectedAlertLevels,
+      );
+
+      if (mounted) {
+        String successMessage = selectedAlertLevels.isEmpty
+            ? 'Abnormal Rise demo sent!'
+            : 'Demo SMS sent successfully!';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(successMessage),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to send demo SMS: ${_cleanErrorMessage(e.toString())}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingDemo = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -526,7 +602,7 @@ class _NotifyPageState extends State<NotifyPage> {
                     Row(
                       children: [
                         Expanded(
-                          child: ElevatedButton.icon(
+                          child: ElevatedButton(
                             onPressed: () {
                               Navigator.push(
                                 context,
@@ -536,21 +612,33 @@ class _NotifyPageState extends State<NotifyPage> {
                                 ),
                               );
                             },
-                            icon: Icon(Icons.edit),
-                            label: Text('Edit Station'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Color(0xFF41BAF1),
                               foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(vertical: 10),
+                              padding: EdgeInsets.symmetric(vertical: 8),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit, size: 18),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Edit',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        SizedBox(width: 12),
+                        SizedBox(width: 8),
                         Expanded(
-                          child: ElevatedButton.icon(
+                          child: ElevatedButton(
                             onPressed: () {
                               Navigator.push(
                                 context,
@@ -559,15 +647,76 @@ class _NotifyPageState extends State<NotifyPage> {
                                 ),
                               );
                             },
-                            icon: Icon(Icons.unsubscribe),
-                            label: Text('Unsubscribe'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(vertical: 10),
+                              padding: EdgeInsets.symmetric(vertical: 8),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.unsubscribe, size: 18),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Unsubscribe',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _isSendingDemo || !_isPhoneValid
+                                ? null
+                                : _handleSendSmsDemo,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              disabledBackgroundColor: Colors.grey.shade300,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _isSendingDemo
+                                    ? SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      )
+                                    : Icon(Icons.sms, size: 18),
+                                SizedBox(height: 2),
+                                Text(
+                                  _isSendingDemo ? 'Sending...' : 'SMS Demo',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
                           ),
                         ),
