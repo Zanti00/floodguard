@@ -4,7 +4,6 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
-  flutter_ble_peripheral
   geolocator_windows
   permission_handler_windows
   url_launcher_windows

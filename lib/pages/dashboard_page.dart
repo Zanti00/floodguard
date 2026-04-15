@@ -3,12 +3,15 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'hotline_page.dart';
 import 'notify_page.dart';
 import 'message_page.dart';
 import '../widgets/animated_water_level.dart';
 import '../widgets/water_level_chart.dart';
 import 'about_page.dart';
+import '../widgets/station_map.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -25,6 +28,7 @@ class _DashboardState extends State<DashboardPage> {
   bool _isLoading = true;
   String? _errorMessage;
   int _selectedBottomNavIndex = 0;
+  bool _isCurrentlyOffline = false;
 
   @override
   void initState() {
@@ -43,19 +47,68 @@ class _DashboardState extends State<DashboardPage> {
           .from('water_levels')
           .select();
 
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_water_levels', jsonEncode(response));
+
       setState(() {
         _water_level = response;
         _isLoading = false;
         _addDropDownItem(_water_level);
       });
+      if (mounted) {
+        if (_isCurrentlyOffline) {
+          _showOnlineSnackbar();
+          _isCurrentlyOffline = false;
+        } else {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
+      }
       fetchHourlyData();
     } catch (error) {
-      setState(() {
-        _errorMessage = 'Error loading data: $error';
-        _isLoading = false;
-      });
-      print('An error has occurred: $error');
+      final prefs = await SharedPreferences.getInstance();
+      final cachedData = prefs.getString('cached_water_levels');
+
+      if (cachedData != null) {
+        setState(() {
+          _water_level = jsonDecode(cachedData);
+          _isLoading = false;
+          _addDropDownItem(_water_level);
+        });
+        _showOfflineSnackbar();
+        fetchHourlyData();
+      } else {
+        setState(() {
+          _errorMessage = 'Error loading data: $error';
+          _isLoading = false;
+        });
+        print('An error has occurred: $error');
+      }
     }
+  }
+
+  void _showOnlineSnackbar() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Back Online - Data Updated'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showOfflineSnackbar() {
+    if (!mounted) return;
+    _isCurrentlyOffline = true;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Offline Mode - Showing Old Data'),
+        backgroundColor: Colors.orange,
+        duration: Duration(days: 365), // Effectively indefinite
+      ),
+    );
   }
 
   Future<void> fetchHourlyData() async {
@@ -68,10 +121,30 @@ class _DashboardState extends State<DashboardPage> {
           .eq('obscd_id', obscdId)
           .order('hour_bucket', ascending: false)
           .limit(24);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_hourly_$obscdId', jsonEncode(response));
+
+      if (mounted) {
+        if (_isCurrentlyOffline) {
+          _showOnlineSnackbar();
+          _isCurrentlyOffline = false;
+        } else {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
+      }
+
       setState(() {
         _hourly_data = response;
       });
     } catch (e) {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedData = prefs.getString('cached_hourly_$obscdId');
+      if (cachedData != null) {
+        setState(() {
+          _hourly_data = jsonDecode(cachedData);
+        });
+      }
       print('Error fetching hourly data: $e');
     }
   }
@@ -278,6 +351,23 @@ class _DashboardState extends State<DashboardPage> {
                   double.tryParse(_getWaterLevelForStation('water_level')) ??
                   0.0,
               maxLevel: _getCriticalLevelForStation(),
+              alarmStatus: _getAlarmLevelForStation('water_level'),
+            ),
+            const Row(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(left: 20, top: 10, bottom: 5),
+                  child: Text(
+                    'Location Map',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+            StationMap(
+              latitude: _getLatitudeForStation(),
+              longitude: _getLongitudeForStation(),
+              stationName: selectedValue ?? 'Unknown Station',
               alarmStatus: _getAlarmLevelForStation('water_level'),
             ),
           ],
@@ -489,6 +579,38 @@ class _DashboardState extends State<DashboardPage> {
       print('Error getting critical level: $e');
     }
     return 100.0;
+  }
+
+  double _getLatitudeForStation() {
+    if (selectedValue == null || _water_level.isEmpty) {
+      return 14.5995; // Default: Manila
+    }
+    for (var entry in _water_level) {
+      if (entry['station_name'] == selectedValue) {
+        final lat = entry['latitude'];
+        if (lat != null) {
+          if (lat is num) return lat.toDouble();
+          return double.tryParse(lat.toString()) ?? 14.5995;
+        }
+      }
+    }
+    return 14.5995;
+  }
+
+  double _getLongitudeForStation() {
+    if (selectedValue == null || _water_level.isEmpty) {
+      return 120.9842; // Default: Manila
+    }
+    for (var entry in _water_level) {
+      if (entry['station_name'] == selectedValue) {
+        final lng = entry['longitude'];
+        if (lng != null) {
+          if (lng is num) return lng.toDouble();
+          return double.tryParse(lng.toString()) ?? 120.9842;
+        }
+      }
+    }
+    return 120.9842;
   }
 
   Color _getAlarmColor(String alarmLevel) {

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart' as permission;
 import '../services/bluetooth_service.dart' as bt_service;
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import '../Controller/ble_controller.dart';
 import '../Controller/classic_bluetooth_controller.dart';
 import 'chat_page.dart';
 
@@ -18,7 +16,6 @@ class MessagePage extends StatefulWidget {
 }
 
 class _MessagePageState extends State<MessagePage> with WidgetsBindingObserver {
-  final BleController _bleController = Get.put(BleController());
   final ClassicBluetoothController _classicBtController = Get.put(
     ClassicBluetoothController(),
   );
@@ -167,126 +164,8 @@ class _MessagePageState extends State<MessagePage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Stop BLE scanning if still active
-    _bleController.stopScan();
     // Don't stop server on dispose as we want it to keep listening for incoming connections
     super.dispose();
-  }
-
-  void _startBLEScanning() async {
-    // Check if already scanning
-    if (_bleController.isScanning.value) return;
-
-    try {
-      // Check if Bluetooth adapter is available and turned on
-      if (await FlutterBluePlus.isSupported == false) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Bluetooth is not supported on this device'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Check if Bluetooth is turned on using the service
-      final isEnabled = await bt_service.BluetoothService.isBluetoothEnabled();
-      if (!isEnabled) {
-        if (mounted) {
-          _showBluetoothDisabledDialog();
-        }
-        return;
-      }
-
-      // Check if location services are enabled (required for BLE scanning on Android)
-      bool serviceEnabled =
-          await permission.Permission.locationWhenInUse.serviceStatus.isEnabled;
-
-      if (!serviceEnabled) {
-        permission.Permission.locationWhenInUse.request();
-        if (mounted) {
-          _showLocationDisabledDialog();
-        }
-        return;
-      }
-
-      // Check location permission
-      permission.PermissionStatus locationStatus =
-          await permission.Permission.locationWhenInUse.status;
-
-      if (locationStatus.isDenied) {
-        locationStatus = await permission.Permission.locationWhenInUse
-            .request();
-        if (!locationStatus.isGranted) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Location permission is required for Bluetooth scanning',
-                ),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      if (locationStatus.isPermanentlyDenied) {
-        if (mounted) {
-          _showPermissionDeniedDialog('Location');
-        }
-        return;
-      }
-
-      // Check Bluetooth scan permission
-      permission.PermissionStatus bluetoothScanStatus =
-          await permission.Permission.bluetoothScan.status;
-
-      if (bluetoothScanStatus.isDenied) {
-        bluetoothScanStatus = await permission.Permission.bluetoothScan
-            .request();
-        if (!bluetoothScanStatus.isGranted) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Bluetooth scan permission is required'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      if (bluetoothScanStatus.isPermanentlyDenied) {
-        if (mounted) {
-          _showPermissionDeniedDialog('Bluetooth scan');
-        }
-        return;
-      }
-
-      // Use BleController to scan
-      await _bleController.scanDevice();
-
-      if (mounted) {
-        print(
-          'Scan complete. Found ${_bleController.scanResults.length} devices',
-        );
-      }
-    } catch (e) {
-      print('BLE Scanning error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error during BLE scan: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   void _startClassicBluetoothScanning() async {
@@ -849,7 +728,7 @@ class _MessagePageState extends State<MessagePage> with WidgetsBindingObserver {
                                       },
                                     ),
                                     if (index <
-                                        _bleController.scanResults.length - 1)
+                                        _classicBtController.scanResults.length - 1)
                                       Divider(height: 1),
                                   ],
                                 );
@@ -915,7 +794,7 @@ class _MessagePageState extends State<MessagePage> with WidgetsBindingObserver {
               onPressed: () async {
                 Navigator.of(context).pop();
                 if (Theme.of(context).platform == TargetPlatform.android) {
-                  await FlutterBluePlus.turnOn();
+                  await bt_service.BluetoothService.requestBluetoothOn();
                 }
               },
               child: const Text('Enable Bluetooth'),
